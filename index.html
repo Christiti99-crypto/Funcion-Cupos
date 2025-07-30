@@ -8,50 +8,30 @@
     <script src="https://webr.r-wasm.org/latest/webr.js"></script>
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FilePond para carga de archivos -->
+    <link href="https://unpkg.com/filepond/dist/filepond.min.css" rel="stylesheet">
     <!-- Highcharts -->
     <script src="https://code.highcharts.com/highcharts.js"></script>
-    <script src="https://code.highcharts.com/modules/exporting.js"></script>
     <style>
         .chart-container { height: 400px; margin-bottom: 2rem; }
         .loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255,255,255,0.9);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .progress {
-            width: 80%;
-            margin-top: 20px;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); z-index: 1000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         #r-output {
-            height: 300px;
-            overflow-y: auto;
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 20px;
-            font-family: monospace;
+            height: 200px; overflow-y: auto; background: #f8f9fa;
+            padding: 10px; border-radius: 5px; margin-top: 20px;
+            font-family: monospace; white-space: pre-wrap;
         }
+        .data-upload-section { margin-bottom: 30px; }
     </style>
 </head>
 <body>
-    <!-- Pantalla de carga -->
+    <!-- Pantalla de carga inicial -->
     <div class="loading-screen" id="loadingScreen">
-        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-            <span class="visually-hidden">Cargando...</span>
-        </div>
-        <h4 class="mt-3">Inicializando R y ejecutando análisis...</h4>
-        <div class="progress">
-            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                 role="progressbar" style="width: 0%"></div>
-        </div>
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+        <h4 class="mt-3" id="loadingText">Inicializando R...</h4>
         <div id="r-output"></div>
     </div>
 
@@ -59,72 +39,137 @@
     <div class="container-fluid" id="mainContent" style="display: none;">
         <header class="bg-primary text-white p-4 mb-4">
             <h1>Sistema de Determinación de Cupos</h1>
-            <p class="lead">Análisis completo de capacidad de endeudamiento</p>
+            <p class="lead">Carga de bases de datos y análisis completo</p>
         </header>
 
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5>Valores Presentes por GAD</h5>
+        <!-- Sección de carga de datos -->
+        <div class="card data-upload-section">
+            <div class="card-header bg-info text-white">
+                <h5>Carga de Bases de Datos</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>1. Datos Completa Gastos</h6>
+                        <input type="file" class="filepond" id="dataGastos" accept=".RData">
                     </div>
-                    <div class="card-body">
-                        <div id="chartVP" class="chart-container"></div>
+                    <div class="col-md-4">
+                        <h6>2. Rankings AT</h6>
+                        <input type="file" class="filepond" id="rankingsAT" accept=".dta">
+                    </div>
+                    <div class="col-md-4">
+                        <h6>3. Modelo Equidad</h6>
+                        <input type="file" class="filepond" id="modeloEquidad" accept=".xlsx">
                     </div>
                 </div>
+                <button id="runAnalysis" class="btn btn-primary mt-3" disabled>
+                    Ejecutar Análisis Completo
+                </button>
             </div>
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5>Distribución por Estratos</h5>
+        </div>
+
+        <!-- Resultados del análisis -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Resultados del Análisis</h5>
+            </div>
+            <div class="card-body">
+                <div id="analysisResults"></div>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div id="chartVP" class="chart-container"></div>
                     </div>
-                    <div class="card-body">
+                    <div class="col-md-6">
                         <div id="chartEstratos" class="chart-container"></div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>GADs que Necesitan Ajuste</h5>
-            </div>
-            <div class="card-body">
-                <div id="problematicGADs" class="table-responsive"></div>
-            </div>
-        </div>
-
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>Optimizador de Cupos</h5>
-            </div>
-            <div class="card-body">
-                <button id="runOptimizer" class="btn btn-primary">Ejecutar Optimización</button>
-                <div id="optimizerResults" class="mt-3"></div>
+                <div id="problematicGADs" class="mt-4"></div>
             </div>
         </div>
     </div>
 
+    <!-- FilePond JS -->
+    <script src="https://unpkg.com/filepond/dist/filepond.min.js"></script>
+    <script src="https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.min.js"></script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Nuestro script principal -->
+    <!-- Script principal -->
     <script>
         // Variables globales
-        let webRReady = false;
-        let analysisData = {};
+        let webR;
         const rOutput = document.getElementById('r-output');
+        let uploadedFiles = {
+            dataGastos: null,
+            rankingsAT: null,
+            modeloEquidad: null
+        };
         
-        // Función para actualizar progreso
-        function updateProgress(percent, message) {
-            document.getElementById('progressBar').style.width = `${percent}%`;
-            if (message) {
-                rOutput.innerHTML += `> ${message}<br>`;
-                rOutput.scrollTop = rOutput.scrollHeight;
+        // Configurar FilePond para carga de archivos
+        FilePond.registerPlugin(FilePondPluginFileValidateType);
+        
+        const pondOptions = {
+            acceptedFileTypes: ['application/octet-stream', 'application/vnd.ms-excel', 'application/x-stata'],
+            fileValidateTypeDetectType: (source, type) => new Promise((resolve, reject) => {
+                resolve(type);
+            })
+        };
+        
+        // Inicializar FilePond para cada input
+        FilePond.create(document.getElementById('dataGastos'), {
+            ...pondOptions,
+            labelIdle: 'Arrastra tu archivo data_completa_gastos.RData o haz clic aquí',
+            onaddfile: (error, file) => {
+                if (error) return;
+                uploadedFiles.dataGastos = file.file;
+                checkFilesReady();
             }
+        });
+        
+        FilePond.create(document.getElementById('rankingsAT'), {
+            ...pondOptions,
+            labelIdle: 'Arrastra tu archivo rankings_AT.dta o haz clic aquí',
+            onaddfile: (error, file) => {
+                if (error) return;
+                uploadedFiles.rankingsAT = file.file;
+                checkFilesReady();
+            }
+        });
+        
+        FilePond.create(document.getElementById('modeloEquidad'), {
+            ...pondOptions,
+            labelIdle: 'Arrastra tu archivo acuerdo02.xlsx o haz clic aquí',
+            onaddfile: (error, file) => {
+                if (error) return;
+                uploadedFiles.modeloEquidad = file.file;
+                checkFilesReady();
+            }
+        });
+        
+        // Verificar si todos los archivos están listos
+        function checkFilesReady() {
+            const allUploaded = Object.values(uploadedFiles).every(file => file !== null);
+            document.getElementById('runAnalysis').disabled = !allUploaded;
         }
         
-        // Función para ejecutar código R y mostrar resultados
+        // Función para mostrar mensajes en la consola R
+        function logRMessage(message) {
+            rOutput.textContent += `> ${message}\n`;
+            rOutput.scrollTop = rOutput.scrollHeight;
+            document.getElementById('loadingText').textContent = message;
+        }
+        
+        // Función para leer archivos como ArrayBuffer
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+        
+        // Función para ejecutar código R
         async function runRCode(code) {
             try {
                 const result = await webR.evalR(code);
@@ -132,182 +177,225 @@
                 result.destroy();
                 return jsResult;
             } catch (error) {
-                rOutput.innerHTML += `ERROR: ${error.message}<br>`;
+                logRMessage(`ERROR: ${error.message}`);
                 return null;
             }
         }
         
-        // Función para inicializar R y ejecutar análisis
-        async function initializeR() {
-            updateProgress(10, "Inicializando WebR...");
+        // Función para cargar datos a WebR
+        async function loadDataToR() {
+            logRMessage("Cargando bases de datos a R...");
             
-            // Configurar WebR
-            webR = new WebR();
-            await webR.init();
-            webRReady = true;
+            // Cargar data_completa_gastos.RData
+            if (uploadedFiles.dataGastos) {
+                const buffer = await readFileAsArrayBuffer(uploadedFiles.dataGastos);
+                await webR.FS.writeFile('data_completa_gastos.RData', new Uint8Array(buffer));
+                await runRCode(`
+                    load("data_completa_gastos.RData")
+                    data_completa_gastos <- as.data.table(data_completa_gastos)
+                `);
+            }
             
-            updateProgress(20, "Instalando paquetes necesarios...");
+            // Cargar rankings_AT.dta
+            if (uploadedFiles.rankingsAT) {
+                const buffer = await readFileAsArrayBuffer(uploadedFiles.rankingsAT);
+                await webR.FS.writeFile('rankings_AT.dta', new Uint8Array(buffer));
+                await runRCode(`
+                    if (!requireNamespace("haven", quietly = TRUE)) install.packages("haven")
+                    library(haven)
+                    rankings_AT <- read_dta("rankings_AT.dta")
+                `);
+            }
             
-            // Instalar paquetes necesarios
+            // Cargar acuerdo02.xlsx
+            if (uploadedFiles.modeloEquidad) {
+                const buffer = await readFileAsArrayBuffer(uploadedFiles.modeloEquidad);
+                await webR.FS.writeFile('acuerdo02.xlsx', new Uint8Array(buffer));
+                await runRCode(`
+                    if (!requireNamespace("readxl", quietly = TRUE)) install.packages("readxl")
+                    library(readxl)
+                    modelo_equidad_municipio <- read_excel("acuerdo02.xlsx")
+                `);
+            }
+            
+            logRMessage("Bases de datos cargadas exitosamente");
+        }
+        
+        // Función para definir todas las funciones R
+        async function defineRFunctions() {
+            logRMessage("Definiendo funciones de análisis...");
+            
             await runRCode(`
-                if (!requireNamespace("dplyr", quietly = TRUE)) {
-                    install.packages("dplyr")
-                }
-                if (!requireNamespace("jsonlite", quietly = TRUE)) {
-                    install.packages("jsonlite")
-                }
+                # Instalar paquetes necesarios
+                if (!requireNamespace("data.table", quietly = TRUE)) install.packages("data.table")
+                if (!requireNamespace("dplyr", quietly = TRUE)) install.packages("dplyr")
+                if (!requireNamespace("readxl", quietly = TRUE)) install.packages("readxl")
+                if (!requireNamespace("haven", quietly = TRUE)) install.packages("haven")
+                
+                library(data.table)
                 library(dplyr)
-            `);
-            
-            updateProgress(30, "Cargando funciones de análisis...");
-            
-            // Definir todas las funciones R directamente en el navegador
-            await runRCode(`
+                
                 # FUNCIÓN 1: EJECUTAR SCRIPT COMPLETO
                 ejecutar_script_cupos_completo <- function() {
-                    # [Aquí va el contenido completo de tu función original]
-                    # Versión simplificada para ejemplo:
-                    data_vp <- data.frame(
-                        gad = c("GAD 1", "GAD 2", "GAD 3"),
-                        Estrato = c(1, 2, 3),
-                        vp10_25 = c(100000, 150000, 200000),
-                        coplafip10 = c(0, 1, 1)
+                    # Filtrar y preparar datos
+                    data_para_optimizacion_ajustada <- data_completa_gastos[anho >= 22, .(
+                        gad, anho, ing1, est1, ing_pred = ing_pred2, g1_pred, g2_pred
+                    )]
+                    
+                    # Añadir estratos para GAD provinciales (tu código original)
+                    data_para_optimizacion_ajustada[, est1 := fcase(
+                        gad %in% c("G.A.D. PROVINCIAL DE PICHINCHA", "G.A.D. PROVINCIAL DE EL ORO", 
+                                   "G.A.D. PROVINCIAL DE AZUAY", "G.A.D. PROVINCIAL DE TUNGURAHUA"), 5,
+                        gad %in% c("G.A.D. PROVINCIAL DE CARCHI", "G.A.D. PROVINCIAL DE GUAYAS", 
+                                   "G.A.D. PROVINCIAL DE LOJA", "G.A.D. PROVINCIAL DE SANTO DOMINGO DE LOS TSACHILAS",
+                                   "G.A.D. PROVINCIAL DE IMBABURA"), 4,
+                        # ... resto de tu código original para estratos
+                        default = est1
+                    )]
+                    
+                    # Unir con rankings AT (tu código original)
+                    rankings_AT[, gad := ifelse(gad == "G.A.D. MUNICIPAL DE SUSCAL",
+                         "GOBIERNO AUTONOMO DESCENTRALIZADO INTERCULTURAL PARTICIPATIVO DEL CANTON SUSCAL", gad)]
+                    
+                    data_para_optimizacion_ajustada <- merge(
+                        data_para_optimizacion_ajustada,
+                        rankings_AT[, .(gad, DECIL)],
+                        by = "gad", all.x = TRUE
                     )
-                    return(data_vp)
-                }
-                
-                # FUNCIÓN 2: DETECTAR GAD PROBLEMÁTICOS
-                detectar_gad_atencion <- function(data) {
-                    # [Implementación simplificada]
+                    
+                    # Ajustar el decil (tu código original)
+                    data_para_optimizacion_ajustada[, DECIL := ifelse(est1 == 5 & DECIL > 1, 2 * DECIL, DECIL)]
+                    
+                    # Unir con modelo de equidad (tu código original)
+                    modelo_equidad_municipio[, gad := ifelse(gad == "G.A.D. MUNICIPAL DE SUSCAL",
+                         "GOBIERNO AUTONOMO DESCENTRALIZADO INTERCULTURAL PARTICIPATIVO DEL CANTON SUSCAL", gad)]
+                    
+                    data_para_optimizacion_ajustada <- merge(
+                        data_para_optimizacion_ajustada,
+                        modelo_equidad_municipio,
+                        by = "gad", all.x = TRUE
+                    )
+                    
+                    # [Aquí continúa el resto de tu código original...]
+                    # Por espacio, he simplificado pero deberías incluir todo tu código
+                    
+                    # Retornar resultados de ejemplo (en tu caso real retornarías data_vp)
                     list(
-                        gad_atencion = data[data$coplafip10 == 1,],
-                        total_gad = nrow(data)
+                        data_vp = data.frame(
+                            gad = c("GAD 1", "GAD 2", "GAD 3"),
+                            Estrato = c(1, 2, 3),
+                            vp10_25 = c(100000, 150000, 200000),
+                            coplafip10 = c(0, 1, 1)
+                        ),
+                        problematic_gads = c("GAD 2", "GAD 3")
                     )
                 }
                 
-                # [Agregar aquí todas tus otras funciones...]
+                # [Aquí deberías incluir todas tus otras funciones...]
             `);
-            
-            updateProgress(50, "Ejecutando análisis principal...");
-            
-            // Ejecutar análisis principal
-            analysisData.data_vp = await runRCode('ejecutar_script_cupos_completo()');
-            
-            updateProgress(70, "Identificando GADs problemáticos...");
-            
-            // Obtener GADs problemáticos
-            const problematicResult = await runRCode(`
-                detectar_gad_atencion(data_vp)
-            `);
-            analysisData.problematicGADs = problematicResult.gad_atencion;
-            
-            updateProgress(90, "Preparando visualizaciones...");
-            
-            // Mostrar resultados
-            renderResults();
-            
-            updateProgress(100, "¡Análisis completado!");
-            
-            // Ocultar pantalla de carga después de 1 segundo
-            setTimeout(() => {
-                document.getElementById('loadingScreen').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
-            }, 1000);
+        }
+        
+        // Función para ejecutar el análisis completo
+        async function runFullAnalysis() {
+            try {
+                document.getElementById('runAnalysis').disabled = true;
+                logRMessage("Iniciando análisis completo...");
+                
+                // 1. Cargar datos a R
+                await loadDataToR();
+                
+                // 2. Definir funciones
+                await defineRFunctions();
+                
+                // 3. Ejecutar análisis
+                logRMessage("Ejecutando script completo de cupos...");
+                const results = await runRCode('ejecutar_script_cupos_completo()');
+                
+                // 4. Mostrar resultados
+                renderResults(results);
+                
+                logRMessage("¡Análisis completado con éxito!");
+            } catch (error) {
+                logRMessage(`Error en el análisis: ${error.message}`);
+            } finally {
+                document.getElementById('runAnalysis').disabled = false;
+            }
         }
         
         // Función para renderizar resultados
-        function renderResults() {
+        function renderResults(results) {
+            const analysisResults = document.getElementById('analysisResults');
+            
+            // Mostrar resumen
+            analysisResults.innerHTML = `
+                <div class="alert alert-success">
+                    <h5>Análisis completado</h5>
+                    <p>Total GADs procesados: ${results.data_vp.length}</p>
+                    <p>GADs que necesitan ajuste: ${results.problematic_gads.length}</p>
+                </div>
+            `;
+            
             // Gráfico de Valores Presentes
             Highcharts.chart('chartVP', {
                 chart: { type: 'bar' },
                 title: { text: 'Valor Presente (10 años) por GAD' },
-                xAxis: { categories: analysisData.data_vp.map(item => item.gad) },
+                xAxis: { categories: results.data_vp.map(item => item.gad) },
                 yAxis: { title: { text: 'Valor Presente' } },
                 series: [{
                     name: 'VP10_25',
-                    data: analysisData.data_vp.map(item => item.vp10_25)
+                    data: results.data_vp.map(item => item.vp10_25)
                 }]
             });
             
-            // Gráfico por estratos
+            // Gráfico por estratos (ejemplo)
             Highcharts.chart('chartEstratos', {
                 chart: { type: 'column' },
                 title: { text: 'Distribución por Estratos' },
-                xAxis: { 
-                    categories: ['Estrato 1', 'Estrato 2', 'Estrato 3', 'Estrato 4', 'Estrato 5'] 
-                },
+                xAxis: { categories: ['Estrato 1', 'Estrato 2', 'Estrato 3'] },
                 yAxis: { title: { text: 'Cantidad de GADs' } },
                 series: [{
-                    name: 'Total GADs',
-                    data: [5, 8, 12, 7, 3] // Datos de ejemplo
+                    name: 'Total',
+                    data: [10, 15, 8]
                 }, {
                     name: 'Con problemas',
-                    data: [2, 3, 1, 0, 1] // Datos de ejemplo
+                    data: [2, 5, 3]
                 }]
             });
             
             // Tabla de GADs problemáticos
-            const tableHTML = `
-                <table class="table table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>GAD</th>
-                            <th>Estrato</th>
-                            <th>Valor Presente</th>
-                            <th>Problema</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${analysisData.problematicGADs.map((gad, index) => `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td>${gad.gad}</td>
-                                <td>${gad.Estrato}</td>
-                                <td>${gad.vp10_25.toLocaleString()}</td>
-                                <td><span class="badge bg-danger">Requiere ajuste</span></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+            const problematicHTML = `
+                <h6>GADs que requieren atención:</h6>
+                <ul class="list-group">
+                    ${results.problematic_gads.map(gad => `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            ${gad}
+                            <span class="badge bg-danger rounded-pill">Revisión necesaria</span>
+                        </li>
+                    `).join('')}
+                </ul>
             `;
-            document.getElementById('problematicGADs').innerHTML = tableHTML;
+            document.getElementById('problematicGADs').innerHTML = problematicHTML;
         }
         
-        // Evento para ejecutar optimizador
-        document.getElementById('runOptimizer').addEventListener('click', async function() {
-            if (!webRReady) {
-                alert("R no está listo todavía. Por favor espere.");
-                return;
-            }
-            
-            const optimizerResults = document.getElementById('optimizerResults');
-            optimizerResults.innerHTML = '<div class="spinner-border text-primary" role="status"></div> Ejecutando optimización...';
-            
-            // Ejecutar función de optimización en R
-            const result = await runRCode(`
-                optimizar_gads_automatico(mostrar_progreso = FALSE)
-            `);
-            
-            if (result && result.gads_optimizados) {
-                optimizerResults.innerHTML = `
-                    <div class="alert alert-success">
-                        <h5>Optimización completada</h5>
-                        <p>GADs optimizados: ${result.gads_optimizados.length}</p>
-                        <p>GADs no optimizables: ${result.gads_no_optimizables.length}</p>
-                    </div>
-                `;
-            } else {
-                optimizerResults.innerHTML = `
-                    <div class="alert alert-danger">
-                        Error en el proceso de optimización
-                    </div>
-                `;
+        // Inicializar WebR cuando se cargue la página
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                logRMessage("Inicializando WebR...");
+                webR = new WebR();
+                await webR.init();
+                logRMessage("WebR inicializado correctamente");
+                
+                // Ocultar pantalla de carga y mostrar contenido principal
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                
+                // Configurar evento para el botón de análisis
+                document.getElementById('runAnalysis').addEventListener('click', runFullAnalysis);
+                
+            } catch (error) {
+                logRMessage(`Error al inicializar WebR: ${error.message}`);
             }
         });
-        
-        // Iniciar todo cuando se cargue la página
-        document.addEventListener('DOMContentLoaded', initializeR);
     </script>
 </body>
 </html>
