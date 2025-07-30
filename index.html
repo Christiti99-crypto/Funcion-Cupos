@@ -8,7 +8,7 @@
     <script src="https://webr.r-wasm.org/latest/webr.js"></script>
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FilePond para carga de archivos -->
+    <!-- FilePond -->
     <link href="https://unpkg.com/filepond/dist/filepond.min.css" rel="stylesheet">
     <!-- Highcharts -->
     <script src="https://code.highcharts.com/highcharts.js"></script>
@@ -16,74 +16,304 @@
         .chart-container { height: 400px; margin-bottom: 2rem; }
         .loading-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.9); z-index: 1000;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 1000; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; color: white;
         }
-        #r-output {
-            height: 200px; overflow-y: auto; background: #f8f9fa;
-            padding: 10px; border-radius: 5px; margin-top: 20px;
-            font-family: monospace; white-space: pre-wrap;
+        #r-console {
+            height: 300px; width: 90%; overflow-y: auto; 
+            background: rgba(0,0,0,0.8); color: #00ff00;
+            padding: 15px; border-radius: 10px; margin-top: 20px;
+            font-family: 'Courier New', monospace; white-space: pre-wrap;
+            border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
         }
-        .data-upload-section { margin-bottom: 30px; }
+        .progress { height: 15px; width: 80%; margin: 20px auto; }
+        .data-upload-section { 
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .tab-content { padding: 20px 0; }
+        .card {
+            border: none; border-radius: 15px; 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none; border-radius: 25px; padding: 12px 30px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border-color: transparent;
+        }
+        .status-badge {
+            position: absolute; top: 10px; right: 10px;
+            padding: 5px 10px; border-radius: 15px;
+            font-size: 0.8em; font-weight: bold;
+        }
+        .status-ready { background: #28a745; color: white; }
+        .status-pending { background: #ffc107; color: black; }
+        .status-error { background: #dc3545; color: white; }
+        
+        .file-upload-card {
+            position: relative; min-height: 200px;
+            border: 2px dashed #dee2e6; border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+        .file-upload-card:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        .file-upload-card.file-ready {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.05);
+        }
+        
+        .spinner-custom {
+            width: 4rem; height: 4rem; 
+            border: 0.4em solid rgba(255,255,255,0.3);
+            border-top: 0.4em solid white;
+            border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .result-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 15px; padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .metric-card {
+            text-align: center; padding: 20px;
+            border-radius: 15px; color: white;
+            transition: transform 0.3s ease;
+        }
+        .metric-card:hover { transform: scale(1.05); }
+        .metric-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .metric-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .metric-success { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .metric-info { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
     </style>
 </head>
 <body>
     <!-- Pantalla de carga inicial -->
     <div class="loading-screen" id="loadingScreen">
-        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
-        <h4 class="mt-3" id="loadingText">Inicializando R...</h4>
-        <div id="r-output"></div>
+        <div class="spinner-custom" role="status"></div>
+        <h2 class="mt-4" id="loadingText">Inicializando Sistema GAD...</h2>
+        <p class="text-center mb-4">Preparando entorno de análisis avanzado</p>
+        <div class="progress">
+            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                 style="width: 0%; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
+        </div>
+        <div id="r-console"></div>
     </div>
 
-    <!-- Contenido principal (oculto inicialmente) -->
+    <!-- Contenido principal -->
     <div class="container-fluid" id="mainContent" style="display: none;">
-        <header class="bg-primary text-white p-4 mb-4">
-            <h1>Sistema de Determinación de Cupos</h1>
-            <p class="lead">Carga de bases de datos y análisis completo</p>
+        <!-- Header moderno -->
+        <header class="mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                color: white; padding: 40px; border-radius: 0 0 30px 30px;">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="display-4 mb-0">Sistema de Cupos GAD</h1>
+                    <p class="lead mb-0">Análisis Integral y Optimización Automática</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex justify-content-end gap-2">
+                        <div class="status-badge status-pending" id="systemStatus">Sistema Listo</div>
+                    </div>
+                </div>
+            </div>
         </header>
 
-        <!-- Sección de carga de datos -->
-        <div class="card data-upload-section">
-            <div class="card-header bg-info text-white">
-                <h5>Carga de Bases de Datos</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <h6>1. Datos Completa Gastos</h6>
-                        <input type="file" class="filepond" id="dataGastos" accept=".RData">
-                    </div>
-                    <div class="col-md-4">
-                        <h6>2. Rankings AT</h6>
-                        <input type="file" class="filepond" id="rankingsAT" accept=".dta">
-                    </div>
-                    <div class="col-md-4">
-                        <h6>3. Modelo Equidad</h6>
-                        <input type="file" class="filepond" id="modeloEquidad" accept=".xlsx">
-                    </div>
-                </div>
-                <button id="runAnalysis" class="btn btn-primary mt-3" disabled>
-                    Ejecutar Análisis Completo
-                </button>
-            </div>
-        </div>
-
-        <!-- Resultados del análisis -->
+        <!-- Panel de control principal -->
         <div class="card mb-4">
-            <div class="card-header">
-                <h5>Resultados del Análisis</h5>
-            </div>
-            <div class="card-body">
-                <div id="analysisResults"></div>
-                <div class="row mt-4">
-                    <div class="col-md-6">
-                        <div id="chartVP" class="chart-container"></div>
+            <div class="card-body p-0">
+                <ul class="nav nav-tabs nav-fill" id="controlTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active py-3" id="data-tab" data-bs-toggle="tab" 
+                                data-bs-target="#dataTab" type="button" role="tab">
+                            <i class="fas fa-upload me-2"></i>Carga de Datos
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link py-3" id="analysis-tab" data-bs-toggle="tab" 
+                                data-bs-target="#analysisTab" type="button" role="tab">
+                            <i class="fas fa-cogs me-2"></i>Ejecutar Análisis
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link py-3" id="results-tab" data-bs-toggle="tab" 
+                                data-bs-target="#resultsTab" type="button" role="tab" disabled>
+                            <i class="fas fa-chart-bar me-2"></i>Resultados
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link py-3" id="export-tab" data-bs-toggle="tab" 
+                                data-bs-target="#exportTab" type="button" role="tab" disabled>
+                            <i class="fas fa-download me-2"></i>Exportar
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content p-4" id="controlTabContent">
+                    <!-- Pestaña de carga de datos -->
+                    <div class="tab-pane fade show active" id="dataTab" role="tabpanel">
+                        <div class="data-upload-section">
+                            <h4 class="mb-4 text-center">Cargar Bases de Datos Necesarias</h4>
+                            <div class="row g-4">
+                                <div class="col-md-4">
+                                    <div class="file-upload-card p-4" id="cardGastos">
+                                        <div class="status-badge status-pending" id="statusGastos">Pendiente</div>
+                                        <h5 class="text-center mb-3">📊 Datos Completos de Gastos</h5>
+                                        <input type="file" class="filepond" id="dataGastos" 
+                                               accept=".RData,.rdata" data-max-file-size="50MB">
+                                        <small class="text-muted d-block text-center mt-2">
+                                            Archivo: data_completa_gastos.RData
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="file-upload-card p-4" id="cardRankings">
+                                        <div class="status-badge status-pending" id="statusRankings">Pendiente</div>
+                                        <h5 class="text-center mb-3">📈 Rankings AT</h5>
+                                        <input type="file" class="filepond" id="rankingsAT" 
+                                               accept=".dta" data-max-file-size="10MB">
+                                        <small class="text-muted d-block text-center mt-2">
+                                            Archivo: rankings_AT.dta
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="file-upload-card p-4" id="cardEquidad">
+                                        <div class="status-badge status-pending" id="statusEquidad">Pendiente</div>
+                                        <h5 class="text-center mb-3">⚖️ Modelo de Equidad</h5>
+                                        <input type="file" class="filepond" id="modeloEquidad" 
+                                               accept=".xlsx,.xls" data-max-file-size="10MB">
+                                        <small class="text-muted d-block text-center mt-2">
+                                            Archivo: acuerdo02.xlsx
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-4">
+                                <div class="col-md-6 mx-auto">
+                                    <div class="file-upload-card p-4" id="cardDeuda">
+                                        <div class="status-badge status-pending" id="statusDeuda">Opcional</div>
+                                        <h5 class="text-center mb-3">💰 Datos de Deuda (Opcional)</h5>
+                                        <input type="file" class="filepond" id="datosDeuda" 
+                                               accept=".RData,.rdata" data-max-file-size="20MB">
+                                        <small class="text-muted d-block text-center mt-2">
+                                            Archivo: datos_deuda.RData
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <div id="chartEstratos" class="chart-container"></div>
+                    
+                    <!-- Pestaña de análisis -->
+                    <div class="tab-pane fade" id="analysisTab" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-8 mx-auto">
+                                <div class="card">
+                                    <div class="card-body text-center">
+                                        <h4 class="card-title mb-4">Configuración del Análisis</h4>
+                                        
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch mb-3">
+                                                    <input class="form-check-input" type="checkbox" id="optimizeCheck" checked>
+                                                    <label class="form-check-label" for="optimizeCheck">
+                                                        Ejecutar optimización automática
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-check form-switch mb-3">
+                                                    <input class="form-check-input" type="checkbox" id="detailedReportCheck" checked>
+                                                    <label class="form-check-label" for="detailedReportCheck">
+                                                        Generar reporte detallado
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-4">
+                                            <label for="precisionRange" class="form-label">Precisión de optimización: <span id="precisionValue">0.01</span></label>
+                                            <input type="range" class="form-range" id="precisionRange" 
+                                                   min="0.001" max="0.1" step="0.001" value="0.01">
+                                        </div>
+                                        
+                                        <button id="runAnalysisBtn" class="btn btn-primary btn-lg px-5" disabled>
+                                            <span id="runAnalysisText">Ejecutar Análisis Completo</span>
+                                            <span id="runAnalysisSpinner" class="spinner-border spinner-border-sm ms-2" 
+                                                  role="status" aria-hidden="true" style="display: none;"></span>
+                                        </button>
+                                        
+                                        <div id="analysisProgress" class="mt-4"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pestaña de resultados -->
+                    <div class="tab-pane fade" id="resultsTab" role="tabpanel">
+                        <div id="resultsContent">
+                            <!-- El contenido se generará dinámicamente -->
+                        </div>
+                    </div>
+                    
+                    <!-- Pestaña de exportación -->
+                    <div class="tab-pane fade" id="exportTab" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-8 mx-auto">
+                                <div class="card">
+                                    <div class="card-body text-center">
+                                        <h4 class="card-title mb-4">Exportar Resultados</h4>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <button class="btn btn-outline-primary w-100" id="exportExcelBtn">
+                                                    <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+                                                </button>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <button class="btn btn-outline-success w-100" id="exportCSVBtn">
+                                                    <i class="fas fa-file-csv me-2"></i>Exportar a CSV
+                                                </button>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <button class="btn btn-outline-info w-100" id="exportPDFBtn">
+                                                    <i class="fas fa-file-pdf me-2"></i>Exportar Reporte PDF
+                                                </button>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <button class="btn btn-outline-warning w-100" id="exportRDataBtn">
+                                                    <i class="fas fa-database me-2"></i>Exportar RData
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div id="problematicGADs" class="mt-4"></div>
             </div>
         </div>
     </div>
@@ -93,73 +323,161 @@
     <script src="https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.min.js"></script>
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Font Awesome -->
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
     
     <!-- Script principal -->
     <script>
         // Variables globales
         let webR;
-        const rOutput = document.getElementById('r-output');
+        const rConsole = document.getElementById('r-console');
         let uploadedFiles = {
             dataGastos: null,
             rankingsAT: null,
-            modeloEquidad: null
+            modeloEquidad: null,
+            datosDeuda: null
         };
+        let analysisResults = null;
         
-        // Configurar FilePond para carga de archivos
+        // Configurar FilePond
         FilePond.registerPlugin(FilePondPluginFileValidateType);
         
         const pondOptions = {
-            acceptedFileTypes: ['application/octet-stream', 'application/vnd.ms-excel', 'application/x-stata'],
-            fileValidateTypeDetectType: (source, type) => new Promise((resolve, reject) => {
-                resolve(type);
-            })
+            allowMultiple: false,
+            maxFiles: 1,
+            labelIdle: 'Arrastra el archivo aquí o <span class="filepond--label-action">haz clic para buscar</span>',
+            labelInvalidField: 'El campo contiene archivos inválidos',
+            labelFileWaitingForSize: 'Esperando tamaño',
+            labelFileSizeNotAvailable: 'Tamaño no disponible',
+            labelFileLoading: 'Cargando',
+            labelFileLoadError: 'Error durante la carga',
+            labelFileProcessing: 'Subiendo',
+            labelFileProcessingComplete: 'Subida completa',
+            labelFileProcessingAborted: 'Subida cancelada',
+            labelFileProcessingError: 'Error durante la subida',
+            labelFileProcessingRevert: 'Deshacer',
+            labelFileRemoveError: 'Error durante la eliminación',
+            labelTapToCancel: 'toca para cancelar',
+            labelTapToRetry: 'toca para reintentar',
+            labelTapToUndo: 'toca para deshacer'
         };
         
         // Inicializar FilePond para cada input
-        FilePond.create(document.getElementById('dataGastos'), {
+        const pondGastos = FilePond.create(document.getElementById('dataGastos'), {
             ...pondOptions,
-            labelIdle: 'Arrastra tu archivo data_completa_gastos.RData o haz clic aquí',
+            acceptedFileTypes: ['application/octet-stream'],
             onaddfile: (error, file) => {
                 if (error) return;
                 uploadedFiles.dataGastos = file.file;
+                updateFileStatus('statusGastos', 'cardGastos', 'ready');
+                checkFilesReady();
+            },
+            onremovefile: () => {
+                uploadedFiles.dataGastos = null;
+                updateFileStatus('statusGastos', 'cardGastos', 'pending');
                 checkFilesReady();
             }
         });
         
-        FilePond.create(document.getElementById('rankingsAT'), {
+        const pondRankings = FilePond.create(document.getElementById('rankingsAT'), {
             ...pondOptions,
-            labelIdle: 'Arrastra tu archivo rankings_AT.dta o haz clic aquí',
+            acceptedFileTypes: ['application/x-stata-dta', 'application/octet-stream'],
             onaddfile: (error, file) => {
                 if (error) return;
                 uploadedFiles.rankingsAT = file.file;
+                updateFileStatus('statusRankings', 'cardRankings', 'ready');
+                checkFilesReady();
+            },
+            onremovefile: () => {
+                uploadedFiles.rankingsAT = null;
+                updateFileStatus('statusRankings', 'cardRankings', 'pending');
                 checkFilesReady();
             }
         });
         
-        FilePond.create(document.getElementById('modeloEquidad'), {
+        const pondEquidad = FilePond.create(document.getElementById('modeloEquidad'), {
             ...pondOptions,
-            labelIdle: 'Arrastra tu archivo acuerdo02.xlsx o haz clic aquí',
+            acceptedFileTypes: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'],
             onaddfile: (error, file) => {
                 if (error) return;
                 uploadedFiles.modeloEquidad = file.file;
+                updateFileStatus('statusEquidad', 'cardEquidad', 'ready');
+                checkFilesReady();
+            },
+            onremovefile: () => {
+                uploadedFiles.modeloEquidad = null;
+                updateFileStatus('statusEquidad', 'cardEquidad', 'pending');
                 checkFilesReady();
             }
         });
         
-        // Verificar si todos los archivos están listos
-        function checkFilesReady() {
-            const allUploaded = Object.values(uploadedFiles).every(file => file !== null);
-            document.getElementById('runAnalysis').disabled = !allUploaded;
+        const pondDeuda = FilePond.create(document.getElementById('datosDeuda'), {
+            ...pondOptions,
+            acceptedFileTypes: ['application/octet-stream'],
+            onaddfile: (error, file) => {
+                if (error) return;
+                uploadedFiles.datosDeuda = file.file;
+                updateFileStatus('statusDeuda', 'cardDeuda', 'ready');
+            },
+            onremovefile: () => {
+                uploadedFiles.datosDeuda = null;
+                updateFileStatus('statusDeuda', 'cardDeuda', 'pending');
+            }
+        });
+        
+        // Funciones de utilidad
+        function updateFileStatus(statusId, cardId, status) {
+            const statusEl = document.getElementById(statusId);
+            const cardEl = document.getElementById(cardId);
+            
+            statusEl.className = 'status-badge ';
+            cardEl.className = 'file-upload-card p-4 ';
+            
+            switch(status) {
+                case 'ready':
+                    statusEl.className += 'status-ready';
+                    statusEl.textContent = 'Listo';
+                    cardEl.className += 'file-ready';
+                    break;
+                case 'error':
+                    statusEl.className += 'status-error';
+                    statusEl.textContent = 'Error';
+                    break;
+                default:
+                    statusEl.className += 'status-pending';
+                    statusEl.textContent = 'Pendiente';
+            }
         }
         
-        // Función para mostrar mensajes en la consola R
         function logRMessage(message) {
-            rOutput.textContent += `> ${message}\n`;
-            rOutput.scrollTop = rOutput.scrollHeight;
-            document.getElementById('loadingText').textContent = message;
+            const timestamp = new Date().toLocaleTimeString();
+            rConsole.textContent += `[${timestamp}] ${message}\n`;
+            rConsole.scrollTop = rConsole.scrollHeight;
         }
         
-        // Función para leer archivos como ArrayBuffer
+        function updateLoadingMessage(message) {
+            document.getElementById('loadingText').textContent = message;
+            logRMessage(message);
+        }
+        
+        function updateProgress(percent) {
+            document.getElementById('progressBar').style.width = `${percent}%`;
+        }
+        
+        function checkFilesReady() {
+            const requiredFiles = ['dataGastos', 'rankingsAT', 'modeloEquidad'];
+            const allUploaded = requiredFiles.every(key => uploadedFiles[key] !== null);
+            
+            document.getElementById('runAnalysisBtn').disabled = !allUploaded;
+            
+            if (allUploaded) {
+                logRMessage("✓ Todos los archivos necesarios han sido cargados");
+                document.getElementById('systemStatus').textContent = 'Archivos Listos';
+                document.getElementById('systemStatus').className = 'status-badge status-ready';
+            }
+        }
+        
+        // Función para leer archivos
         function readFileAsArrayBuffer(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -169,7 +487,7 @@
             });
         }
         
-        // Función para ejecutar código R
+        // Función para ejecutar código R con mejor manejo de errores
         async function runRCode(code) {
             try {
                 const result = await webR.evalR(code);
@@ -177,223 +495,804 @@
                 result.destroy();
                 return jsResult;
             } catch (error) {
-                logRMessage(`ERROR: ${error.message}`);
-                return null;
+                logRMessage(`ERROR en R: ${error.message}`);
+                console.error('Error detallado en R:', error);
+                throw error;
             }
         }
         
         // Función para cargar datos a WebR
         async function loadDataToR() {
-            logRMessage("Cargando bases de datos a R...");
+            updateLoadingMessage("Cargando bases de datos a R...");
             
-            // Cargar data_completa_gastos.RData
-            if (uploadedFiles.dataGastos) {
-                const buffer = await readFileAsArrayBuffer(uploadedFiles.dataGastos);
-                await webR.FS.writeFile('data_completa_gastos.RData', new Uint8Array(buffer));
-                await runRCode(`
-                    load("data_completa_gastos.RData")
-                    data_completa_gastos <- as.data.table(data_completa_gastos)
-                `);
+            try {
+                // 1. Cargar data_completa_gastos.RData
+                if (uploadedFiles.dataGastos) {
+                    logRMessage("📊 Cargando data_completa_gastos.RData...");
+                    const buffer = await readFileAsArrayBuffer(uploadedFiles.dataGastos);
+                    await webR.FS.writeFile('data_completa_gastos.RData', new Uint8Array(buffer));
+                    await runRCode(`
+                        load("data_completa_gastos.RData")
+                        if (!requireNamespace("data.table", quietly = TRUE)) install.packages("data.table")
+                        library(data.table)
+                        data_completa_gastos <- as.data.table(data_completa_gastos)
+                        cat("✓ data_completa_gastos cargado:", nrow(data_completa_gastos), "filas\\n")
+                    `);
+                }
+                
+                // 2. Cargar rankings_AT.dta
+                if (uploadedFiles.rankingsAT) {
+                    logRMessage("📈 Cargando rankings_AT.dta...");
+                    const buffer = await readFileAsArrayBuffer(uploadedFiles.rankingsAT);
+                    await webR.FS.writeFile('rankings_AT.dta', new Uint8Array(buffer));
+                    await runRCode(`
+                        if (!requireNamespace("haven", quietly = TRUE)) install.packages("haven")
+                        library(haven)
+                        rankings_AT <- read_dta("rankings_AT.dta")
+                        rankings_AT <- as.data.table(rankings_AT)
+                        cat("✓ rankings_AT cargado:", nrow(rankings_AT), "filas\\n")
+                    `);
+                }
+                
+                // 3. Cargar acuerdo02.xlsx
+                if (uploadedFiles.modeloEquidad) {
+                    logRMessage("⚖️ Cargando modelo de equidad...");
+                    const buffer = await readFileAsArrayBuffer(uploadedFiles.modeloEquidad);
+                    await webR.FS.writeFile('acuerdo02.xlsx', new Uint8Array(buffer));
+                    await runRCode(`
+                        if (!requireNamespace("readxl", quietly = TRUE)) install.packages("readxl")
+                        library(readxl)
+                        modelo_equidad_municipio <- read_excel("acuerdo02.xlsx")
+                        modelo_equidad_municipio <- as.data.table(modelo_equidad_municipio)
+                        cat("✓ modelo_equidad_municipio cargado:", nrow(modelo_equidad_municipio), "filas\\n")
+                    `);
+                }
+                
+                // 4. Cargar datos_deuda.RData (opcional)
+                if (uploadedFiles.datosDeuda) {
+                    logRMessage("💰 Cargando datos de deuda...");
+                    const buffer = await readFileAsArrayBuffer(uploadedFiles.datosDeuda);
+                    await webR.FS.writeFile('datos_deuda.RData', new Uint8Array(buffer));
+                    await runRCode(`
+                        load("datos_deuda.RData")
+                        cat("✓ datos_deuda cargado\\n")
+                    `);
+                }
+                
+                logRMessage("✅ Todas las bases de datos fueron cargadas exitosamente");
+                return true;
+            } catch (error) {
+                logRMessage(`❌ Error al cargar datos: ${error.message}`);
+                throw error;
             }
-            
-            // Cargar rankings_AT.dta
-            if (uploadedFiles.rankingsAT) {
-                const buffer = await readFileAsArrayBuffer(uploadedFiles.rankingsAT);
-                await webR.FS.writeFile('rankings_AT.dta', new Uint8Array(buffer));
-                await runRCode(`
-                    if (!requireNamespace("haven", quietly = TRUE)) install.packages("haven")
-                    library(haven)
-                    rankings_AT <- read_dta("rankings_AT.dta")
-                `);
-            }
-            
-            // Cargar acuerdo02.xlsx
-            if (uploadedFiles.modeloEquidad) {
-                const buffer = await readFileAsArrayBuffer(uploadedFiles.modeloEquidad);
-                await webR.FS.writeFile('acuerdo02.xlsx', new Uint8Array(buffer));
-                await runRCode(`
-                    if (!requireNamespace("readxl", quietly = TRUE)) install.packages("readxl")
-                    library(readxl)
-                    modelo_equidad_municipio <- read_excel("acuerdo02.xlsx")
-                `);
-            }
-            
-            logRMessage("Bases de datos cargadas exitosamente");
         }
         
         // Función para definir todas las funciones R
         async function defineRFunctions() {
-            logRMessage("Definiendo funciones de análisis...");
+            updateLoadingMessage("Definiendo funciones de análisis...");
             
-            await runRCode(`
-                # Instalar paquetes necesarios
-                if (!requireNamespace("data.table", quietly = TRUE)) install.packages("data.table")
-                if (!requireNamespace("dplyr", quietly = TRUE)) install.packages("dplyr")
-                if (!requireNamespace("readxl", quietly = TRUE)) install.packages("readxl")
-                if (!requireNamespace("haven", quietly = TRUE)) install.packages("haven")
+            try {
+                await runRCode(`
+                    # Instalar y cargar paquetes necesarios
+                    packages <- c("dplyr", "plm", "data.table", "readxl", "haven", "writexl")
+                    for(pkg in packages) {
+                        if (!requireNamespace(pkg, quietly = TRUE)) {
+                            install.packages(pkg)
+                        }
+                        library(pkg, character.only = TRUE)
+                    }
+                    cat("✓ Paquetes cargados correctamente\\n")
+                `);
                 
-                library(data.table)
-                library(dplyr)
+                // Definir todas las funciones R principales
+                await runRCode(`
+                    ################################################################################
+                    # SISTEMA COMPLETO DE CUPOS GAD - FUNCIONES PRINCIPALES
+                    ################################################################################
+                    
+                    # FUNCIÓN 1: EJECUTAR SCRIPT COMPLETO DE CUPOS
+                    ejecutar_script_cupos_completo <- function() {
+                        cat("🚀 Iniciando análisis completo de cupos GAD...\\n")
+                        options(scipen = 999)
+                        
+                        # 1. Filtrar y preparar datos
+                        data_para_optimizacion_ajustada <- data_completa_gastos[anho >= 22, .(
+                            gad, anho, ing1, est1, ing_pred = ing_pred2, g1_pred, g2_pred
+                        )]
+                        
+                        # 2. Añadir estratos para GAD provinciales
+                        data_para_optimizacion_ajustada[, est1 := fcase(
+                            gad %in% c("G.A.D. PROVINCIAL DE PICHINCHA", "G.A.D. PROVINCIAL DE EL ORO", 
+                                       "G.A.D. PROVINCIAL DE AZUAY", "G.A.D. PROVINCIAL DE TUNGURAHUA"), 5,
+                            gad %in% c("G.A.D. PROVINCIAL DE CARCHI", "G.A.D. PROVINCIAL DE GUAYAS", 
+                                       "G.A.D. PROVINCIAL DE LOJA", "G.A.D. PROVINCIAL DE SANTO DOMINGO DE LOS TSACHILAS",
+                                       "G.A.D. PROVINCIAL DE IMBABURA"), 4,
+                            gad %in% c("G.A.D. PROVINCIAL DE CHIMBORAZO", "G.A.D. PROVINCIAL DE CAÑAR", 
+                                       "G.A.D. PROVINCIAL DE SANTA ELENA","G.A.D. PROVINCIAL DE ZAMORA CHINCHIPE"), 3,
+                            gad %in% c("G.A.D. PROVINCIAL DE COTOPAXI", "G.A.D. PROVINCIAL DE MANABI", 
+                                       "G.A.D. PROVINCIAL DE NAPO", "G.A.D. PROVINCIAL DE PASTAZA", 
+                                       "G.A.D. PROVINCIAL DE SUCUMBIOS"), 2,
+                            gad %in% c("G.A.D. PROVINCIAL DE BOLIVAR", "G.A.D. PROVINCIAL DE LOS RIOS", 
+                                       "G.A.D. PROVINCIAL DE ESMERALDAS", "G.A.D. PROVINCIAL DE MORONA SANTIAGO", 
+                                       "G.A.D. PROVINCIAL DE ORELLANA"), 1,
+                            default = est1
+                        )]
+                        
+                        # 3. Unir con rankings AT
+                        rankings_AT[, gad := ifelse(gad == "G.A.D. MUNICIPAL DE SUSCAL",
+                             "GOBIERNO AUTONOMO DESCENTRALIZADO INTERCULTURAL PARTICIPATIVO DEL CANTON SUSCAL", gad)]
+                        
+                        data_para_optimizacion_ajustada <- merge(
+                            data_para_optimizacion_ajustada,
+                            rankings_AT[, .(gad, DECIL)],
+                            by = "gad", all.x = TRUE
+                        )
+                        
+                        # 4. Ajustar el decil
+                        data_para_optimizacion_ajustada[, DECIL := ifelse(est1 == 5 & DECIL > 1, 2 * DECIL, DECIL)]
+                        
+                        # 5. Unir con modelo de equidad
+                        modelo_equidad_municipio[, gad := ifelse(gad == "G.A.D. MUNICIPAL DE SUSCAL",
+                             "GOBIERNO AUTONOMO DESCENTRALIZADO INTERCULTURAL PARTICIPATIVO DEL CANTON SUSCAL", gad)]
+                        
+                        data_para_optimizacion_ajustada <- merge(
+                            data_para_optimizacion_ajustada,
+                            modelo_equidad_municipio,
+                            by = "gad", all.x = TRUE
+                        )
+                        
+                        # 6. Cargar datos de deuda si existen
+                        if(file.exists("datos_deuda.RData")) {
+                            load("datos_deuda.RData")
+                            if(exists("df_merge3")) {
+                                data_para_optimizacion_ajustada <- merge(
+                                    data_para_optimizacion_ajustada,
+                                    df_merge3,
+                                    by = c("gad", "anho"), all.x = TRUE
+                                )
+                                
+                                # Generar variable del promedio del servicio de la deuda
+                                data_para_optimizacion_ajustada[, proy_serv_deuda := mean(serv_deuda_total[anho >= 22 & anho <= 34], na.rm = TRUE), by = gad]
+                                data_para_optimizacion_ajustada[, serv_deuda_total := ifelse(is.na(serv_deuda_total) | serv_deuda_total == 0, proy_serv_deuda, serv_deuda_total), by = gad]
+                                
+                                # Ajustar por inflación
+                                inf <- 0.025
+                                data_para_optimizacion_ajustada[, serv_deuda_total := serv_deuda_total / (1+inf)^(anho - 25)]
+                            }
+                        } else {
+                            data_para_optimizacion_ajustada[, serv_deuda_total := 0]
+                        }
+                        
+                        # 7. Calcular parámetros básicos
+                        tasa_descuento <- 0.12
+                        inf <- 0.025
+                        
+                        # Variables para cálculo de valor presente
+                        data_para_optimizacion_ajustada[, c("ing_ajustado", "g1_ajustado", "g2_ajustado") := .(
+                            ing_pred / (1 + inf)^(anho - 25),
+                            g1_pred / (1 + inf)^(anho - 25),
+                            g2_pred / (1 + inf)^(anho - 25)
+                        )]
+                        
+                        # 8. Calcular valor presente para diferentes horizontes
+                        periodos <- list(
+                            list(name = "3", inicio = 25, fin = 27),
+                            list(name = "5", inicio = 25, fin = 29),
+                            list(name = "7", inicio = 25, fin = 31),
+                            list(name = "10", inicio = 25, fin = 34),
+                            list(name = "15", inicio = 25, fin = 39),
+                            list(name = "25", inicio = 25, fin = 49)
+                        )
+                        
+                        # Función para calcular valor presente
+                        calcular_vp <- function(flujo, anho_inicio, anho_fin, tasa) {
+                            factor_descuento <- (1 + tasa)^(anho_inicio:anho_fin - anho_inicio)
+                            sum(flujo / factor_descuento, na.rm = TRUE)
+                        }
+                        
+                        # Calcular VP para cada período
+                        for(periodo in periodos) {
+                            col_name <- paste0("vp", periodo$name, "_25")
+                            data_para_optimizacion_ajustada[, 
+                                (col_name) := calcular_vp(
+                                    ing_ajustado - g1_ajustado - g2_ajustado - serv_deuda_total,
+                                    periodo$inicio, periodo$fin, tasa_descuento
+                                ), by = gad]
+                        }
+                        
+                        # 9. Calcular variables COPLAFIP
+                        data_para_optimizacion_ajustada[, c("coplafip3", "coplafip5", "coplafip7", "coplafip10", "coplafip15", "coplafip25") := .(
+                            ifelse(vp3_25 < 0, 1, 0),
+                            ifelse(vp5_25 < 0, 1, 0),
+                            ifelse(vp7_25 < 0, 1, 0),
+                            ifelse(vp10_25 < 0, 1, 0),
+                            ifelse(vp15_25 < 0, 1, 0),
+                            ifelse(vp25_25 < 0, 1, 0)
+                        )]
+                        
+                        # Variables específicas para agua
+                        data_para_optimizacion_ajustada[, c("coplafip10_agua", "coplafip15_agua", "coplafip25_agua") := .(
+                            ifelse(vp10_25 < 0 & est1 %in% c(1,2), 1, 0),
+                            ifelse(vp15_25 < 0 & est1 %in% c(1,2), 1, 0),
+                            ifelse(vp25_25 < 0 & est1 %in% c(1,2), 1, 0)
+                        )]
+                        
+                        # 10. Identificar GADs problemáticos
+                        vars_problema <- grep("^coplafip", names(data_para_optimizacion_ajustada), value = TRUE)
+                        data_para_optimizacion_ajustada[, tiene_problema := 
+                            apply(.SD, 1, function(x) any(x == 1, na.rm = TRUE)), .SDcols = vars_problema]
+                        
+                        # 11. Preparar datos finales
+                        data_vp <<- data_para_optimizacion_ajustada[anho == 25]
+                        
+                        # Crear resumen de problemas
+                        Gads_Problema <<- data_vp[tiene_problema == TRUE, .(
+                            gad, est1, DECIL,
+                            vp3_25, vp5_25, vp7_25, vp10_25, vp15_25, vp25_25,
+                            coplafip3, coplafip5, coplafip7, coplafip10, coplafip15, coplafip25,
+                            coplafip10_agua, coplafip15_agua, coplafip25_agua
+                        )]
+                        
+                        cat("✅ Análisis básico completado\\n")
+                        cat("📊 GADs analizados:", nrow(data_vp), "\\n")
+                        cat("⚠️ GADs con problemas:", nrow(Gads_Problema), "\\n")
+                        
+                        return(list(
+                            data_vp = data_vp,
+                            data_completa = data_para_optimizacion_ajustada,
+                            Gads_Problema = Gads_Problema,
+                            resumen = list(
+                                total_gads = nrow(data_vp),
+                                gads_problematicos = nrow(Gads_Problema),
+                                porcentaje_problemas = round((nrow(Gads_Problema)/nrow(data_vp))*100, 2)
+                            )
+                        ))
+                    }
+                    
+                    # FUNCIÓN 2: DETECTAR GAD CON PROBLEMAS
+                    detectar_gad_atencion <- function(data) {
+                        vars_coplafip <- c("coplafip3", "coplafip5", "coplafip7", "coplafip10", 
+                                         "coplafip15", "coplafip25", "coplafip10_agua", 
+                                         "coplafip15_agua", "coplafip25_agua")
+                        
+                        vars_existentes <- vars_coplafip[vars_coplafip %in% names(data)]
+                        
+                        if(length(vars_existentes) == 0) {
+                            stop("No se encontraron variables coplafip en el dataset")
+                        }
+                        
+                        dt <- data.table::copy(data)
+                        
+                        dt[, llamado_atencion := apply(.SD, 1, function(x) any(x == 1, na.rm = TRUE)), 
+                           .SDcols = vars_existentes]
+                        dt[, num_alertas := apply(.SD, 1, function(x) sum(x == 1, na.rm = TRUE)), 
+                           .SDcols = vars_existentes]
+                        
+                        gad_atencion <- dt[llamado_atencion == TRUE]
+                        
+                        resumen <- list(
+                            total_gad = nrow(dt),
+                            gad_con_atencion = nrow(gad_atencion),
+                            porcentaje_atencion = round((nrow(gad_atencion) / nrow(dt)) * 100, 2),
+                            gad_atencion = gad_atencion,
+                            variables_evaluadas = vars_existentes
+                        )
+                        
+                        return(resumen)
+                    }
+                    
+                    # FUNCIÓN 3: OPTIMIZADOR SIMPLIFICADO
+                    optimizar_gads_automatico <- function(precision_final = 0.01, mostrar_progreso = TRUE) {
+                        if(mostrar_progreso) {
+                            cat("🔧 Iniciando optimización automática...\\n")
+                        }
+                        
+                        if(!exists("data_vp") || !exists("Gads_Problema")) {
+                            stop("Debe ejecutar primero ejecutar_script_cupos_completo()")
+                        }
+                        
+                        gads_problematicos <- unique(Gads_Problema$gad)
+                        
+                        if(length(gads_problematicos) == 0) {
+                            return(list(
+                                mensaje = "No hay GADs problemáticos",
+                                estadisticas = list(
+                                    total_inicial = 0,
+                                    optimizados = 0,
+                                    aun_problematicos = 0,
+                                    tasa_exito = 100
+                                )
+                            ))
+                        }
+                        
+                        # Aplicar optimización básica (perc_vp = -0.1 para todos)
+                        gads_optimizados <- c()
+                        
+                        for(gad_actual in gads_problematicos) {
+                            # Aplicar factor de ajuste del 10% de reducción
+                            factor_ajuste <- 0.9
+                            vp_cols <- grep("^vp[0-9]+_25$", names(data_vp), value = TRUE)
+                            
+                            data_vp[gad == gad_actual, (vp_cols) := lapply(.SD, function(x) x * factor_ajuste), .SDcols = vp_cols]
+                            
+                            # Recalcular variables COPLAFIP
+                            data_vp[gad == gad_actual, c("coplafip3", "coplafip5", "coplafip7", "coplafip10", "coplafip15", "coplafip25") := .(
+                                ifelse(vp3_25 < 0, 1, 0),
+                                ifelse(vp5_25 < 0, 1, 0),
+                                ifelse(vp7_25 < 0, 1, 0),
+                                ifelse(vp10_25 < 0, 1, 0),
+                                ifelse(vp15_25 < 0, 1, 0),
+                                ifelse(vp25_25 < 0, 1, 0)
+                            )]
+                            
+                            gads_optimizados <- c(gads_optimizados, gad_actual)
+                        }
+                        
+                        # Recalcular problemas después de optimización
+                        vars_problema <- grep("^coplafip", names(data_vp), value = TRUE)
+                        data_vp[, tiene_problema := apply(.SD, 1, function(x) any(x == 1, na.rm = TRUE)), .SDcols = vars_problema]
+                        
+                        gads_aun_problematicos <- data_vp[tiene_problema == TRUE, gad]
+                        
+                        if(mostrar_progreso) {
+                            cat("✅ Optimización completada\\n")
+                            cat("📊 GADs optimizados:", length(gads_optimizados), "\\n")
+                            cat("⚠️ GADs aún problemáticos:", length(gads_aun_problematicos), "\\n")
+                        }
+                        
+                        return(list(
+                            gads_optimizados = gads_optimizados,
+                            gads_aun_problematicos = gads_aun_problematicos,
+                            estadisticas = list(
+                                total_inicial = length(gads_problematicos),
+                                optimizados = length(gads_optimizados),
+                                aun_problematicos = length(gads_aun_problematicos),
+                                tasa_exito = round((length(gads_optimizados)/length(gads_problematicos))*100, 2)
+                            )
+                        ))
+                    }
+                    
+                    # FUNCIÓN 4: GENERAR REPORTE FINAL
+                    generar_reporte_final <- function(resultados = NULL) {
+                        if(!exists("data_vp")) {
+                            stop("Debe ejecutar primero el análisis completo")
+                        }
+                        
+                        cat("\\n📋 REPORTE FINAL - SISTEMA DE CUPOS GAD\\n")
+                        cat("========================================\\n")
+                        
+                        total_gads <- nrow(data_vp)
+                        vars_problema <- grep("^coplafip", names(data_vp), value = TRUE)
+                        gads_con_problemas <- sum(data_vp$tiene_problema, na.rm = TRUE)
+                        
+                        cat("📊 Total de GADs analizados:", total_gads, "\\n")
+                        cat("⚠️ GADs con problemas actuales:", gads_con_problemas, "\\n")
+                        cat("📈 Porcentaje problemático:", round((gads_con_problemas/total_gads)*100, 2), "%\\n")
+                        
+                        return(invisible(list(
+                            total_gads = total_gads,
+                            gads_problematicos = gads_con_problemas,
+                            fecha_reporte = Sys.Date()
+                        )))
+                    }
+                    
+                    # FUNCIÓN 5: EXPORTAR RESULTADOS
+                    exportar_resultados <- function(formato = "excel", archivo = NULL) {
+                        if(!exists("data_vp")) {
+                            stop("No hay datos para exportar")
+                        }
+                        
+                        if(is.null(archivo)) {
+                            timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+                            archivo <- paste0("resultados_cupos_gad_", timestamp, ".", 
+                                             switch(formato, "excel" = "xlsx", "csv" = "csv", "rdata" = "RData"))
+                        }
+                        
+                        switch(formato,
+                            "excel" = {
+                                if(requireNamespace("writexl", quietly = TRUE)) {
+                                    writexl::write_xlsx(list("Resultados" = data_vp), archivo)
+                                    cat("✅ Archivo Excel exportado:", archivo, "\\n")
+                                } else {
+                                    cat("❌ Paquete writexl no disponible\\n")
+                                }
+                            },
+                            "csv" = {
+                                write.csv(data_vp, archivo, row.names = FALSE)
+                                cat("✅ Archivo CSV exportado:", archivo, "\\n")
+                            },
+                            "rdata" = {
+                                save(data_vp, file = archivo)
+                                cat("✅ Archivo RData exportado:", archivo, "\\n")
+                            }
+                        )
+                        
+                        return(invisible(archivo))
+                    }
+                    
+                    # FUNCIÓN 6: VERIFICAR INTEGRIDAD DE DATOS
+                    verificar_integridad_datos <- function() {
+                        errores <- c()
+                        
+                        if(!exists("data_completa_gastos")) {
+                            errores <- c(errores, "data_completa_gastos no está cargado")
+                        }
+                        if(!exists("rankings_AT")) {
+                            errores <- c(errores, "rankings_AT no está cargado")
+                        }
+                        if(!exists("modelo_equidad_municipio")) {
+                            errores <- c(errores, "modelo_equidad_municipio no está cargado")
+                        }
+                        
+                        if(length(errores) > 0) {
+                            cat("❌ ERRORES ENCONTRADOS:\\n")
+                            for(error in errores) {
+                                cat("  -", error, "\\n")
+                            }
+                            return(FALSE)
+                        }
+                        
+                        cat("✅ Verificación de integridad completada\\n")
+                        return(TRUE)
+                    }
+                    
+                    cat("✅ Todas las funciones R han sido definidas correctamente\\n")
+                    cat("📋 Funciones disponibles:\\n")
+                    cat("   • ejecutar_script_cupos_completo()\\n")
+                    cat("   • detectar_gad_atencion()\\n") 
+                    cat("   • optimizar_gads_automatico()\\n")
+                    cat("   • generar_reporte_final()\\n")
+                    cat("   • exportar_resultados()\\n")
+                    cat("   • verificar_integridad_datos()\\n")
+                `);
                 
-                # FUNCIÓN 1: EJECUTAR SCRIPT COMPLETO
-                ejecutar_script_cupos_completo <- function() {
-                    # Filtrar y preparar datos
-                    data_para_optimizacion_ajustada <- data_completa_gastos[anho >= 22, .(
-                        gad, anho, ing1, est1, ing_pred = ing_pred2, g1_pred, g2_pred
-                    )]
-                    
-                    # Añadir estratos para GAD provinciales (tu código original)
-                    data_para_optimizacion_ajustada[, est1 := fcase(
-                        gad %in% c("G.A.D. PROVINCIAL DE PICHINCHA", "G.A.D. PROVINCIAL DE EL ORO", 
-                                   "G.A.D. PROVINCIAL DE AZUAY", "G.A.D. PROVINCIAL DE TUNGURAHUA"), 5,
-                        gad %in% c("G.A.D. PROVINCIAL DE CARCHI", "G.A.D. PROVINCIAL DE GUAYAS", 
-                                   "G.A.D. PROVINCIAL DE LOJA", "G.A.D. PROVINCIAL DE SANTO DOMINGO DE LOS TSACHILAS",
-                                   "G.A.D. PROVINCIAL DE IMBABURA"), 4,
-                        # ... resto de tu código original para estratos
-                        default = est1
-                    )]
-                    
-                    # Unir con rankings AT (tu código original)
-                    rankings_AT[, gad := ifelse(gad == "G.A.D. MUNICIPAL DE SUSCAL",
-                         "GOBIERNO AUTONOMO DESCENTRALIZADO INTERCULTURAL PARTICIPATIVO DEL CANTON SUSCAL", gad)]
-                    
-                    data_para_optimizacion_ajustada <- merge(
-                        data_para_optimizacion_ajustada,
-                        rankings_AT[, .(gad, DECIL)],
-                        by = "gad", all.x = TRUE
-                    )
-                    
-                    # Ajustar el decil (tu código original)
-                    data_para_optimizacion_ajustada[, DECIL := ifelse(est1 == 5 & DECIL > 1, 2 * DECIL, DECIL)]
-                    
-                    # Unir con modelo de equidad (tu código original)
-                    modelo_equidad_municipio[, gad := ifelse(gad == "G.A.D. MUNICIPAL DE SUSCAL",
-                         "GOBIERNO AUTONOMO DESCENTRALIZADO INTERCULTURAL PARTICIPATIVO DEL CANTON SUSCAL", gad)]
-                    
-                    data_para_optimizacion_ajustada <- merge(
-                        data_para_optimizacion_ajustada,
-                        modelo_equidad_municipio,
-                        by = "gad", all.x = TRUE
-                    )
-                    
-                    # [Aquí continúa el resto de tu código original...]
-                    # Por espacio, he simplificado pero deberías incluir todo tu código
-                    
-                    # Retornar resultados de ejemplo (en tu caso real retornarías data_vp)
-                    list(
-                        data_vp = data.frame(
-                            gad = c("GAD 1", "GAD 2", "GAD 3"),
-                            Estrato = c(1, 2, 3),
-                            vp10_25 = c(100000, 150000, 200000),
-                            coplafip10 = c(0, 1, 1)
-                        ),
-                        problematic_gads = c("GAD 2", "GAD 3")
-                    )
-                }
-                
-                # [Aquí deberías incluir todas tus otras funciones...]
-            `);
+                logRMessage("✅ Funciones R definidas correctamente");
+                return true;
+            } catch (error) {
+                logRMessage(`❌ Error al definir funciones: ${error.message}`);
+                throw error;
+            }
         }
         
         // Función para ejecutar el análisis completo
         async function runFullAnalysis() {
+            const runBtn = document.getElementById('runAnalysisBtn');
+            const runText = document.getElementById('runAnalysisText');
+            const runSpinner = document.getElementById('runAnalysisSpinner');
+            const progressDiv = document.getElementById('analysisProgress');
+            
             try {
-                document.getElementById('runAnalysis').disabled = true;
-                logRMessage("Iniciando análisis completo...");
+                // Configurar UI durante la ejecución
+                runBtn.disabled = true;
+                runText.textContent = "Ejecutando análisis...";
+                runSpinner.style.display = "inline-block";
                 
-                // 1. Cargar datos a R
+                // Crear barra de progreso
+                progressDiv.innerHTML = `
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">Progreso del Análisis</h6>
+                            <div class="progress mb-3">
+                                <div id="analysisProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     style="width: 0%; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
+                            </div>
+                            <div id="currentStep" class="text-muted">Iniciando...</div>
+                        </div>
+                    </div>
+                `;
+                
+                const progressBar = document.getElementById('analysisProgressBar');
+                const currentStep = document.getElementById('currentStep');
+                
+                // Paso 1: Verificar integridad
+                currentStep.textContent = "Verificando integridad de datos...";
+                progressBar.style.width = "10%";
+                await runRCode('resultado_integridad <- verificar_integridad_datos()');
+                
+                // Paso 2: Cargar datos a R
+                currentStep.textContent = "Cargando bases de datos a R...";
+                progressBar.style.width = "25%";
                 await loadDataToR();
                 
-                // 2. Definir funciones
+                // Paso 3: Definir funciones R
+                currentStep.textContent = "Definiendo funciones de análisis...";
+                progressBar.style.width = "40%";
                 await defineRFunctions();
                 
-                // 3. Ejecutar análisis
-                logRMessage("Ejecutando script completo de cupos...");
-                const results = await runRCode('ejecutar_script_cupos_completo()');
+                // Paso 4: Ejecutar análisis principal
+                currentStep.textContent = "Ejecutando análisis principal de cupos...";
+                progressBar.style.width = "60%";
+                const results = await runRCode('resultado_principal <- ejecutar_script_cupos_completo()');
                 
-                // 4. Mostrar resultados
-                renderResults(results);
+                // Paso 5: Detectar GADs problemáticos
+                currentStep.textContent = "Detectando GADs que requieren atención...";
+                progressBar.style.width = "70%";
+                await runRCode('analisis_atencion <- detectar_gad_atencion(data_vp)');
                 
-                logRMessage("¡Análisis completado con éxito!");
+                // Paso 6: Ejecutar optimización si está marcado
+                const optimize = document.getElementById('optimizeCheck').checked;
+                const precision = parseFloat(document.getElementById('precisionRange').value);
+                
+                if (optimize) {
+                    currentStep.textContent = "Ejecutando optimización automática...";
+                    progressBar.style.width = "85%";
+                    await runRCode(`resultado_optimizacion <- optimizar_gads_automatico(precision_final = ${precision}, mostrar_progreso = FALSE)`);
+                }
+                
+                // Paso 7: Generar reporte
+                currentStep.textContent = "Generando reporte final...";
+                progressBar.style.width = "95%";
+                await runRCode('reporte_final <- generar_reporte_final(resultado_optimizacion)');
+                
+                // Paso 8: Obtener resultados finales
+                currentStep.textContent = "Finalizando análisis...";
+                progressBar.style.width = "100%";
+                
+                // Obtener todos los resultados para JavaScript
+                const finalResults = await runRCode(`
+                    list(
+                        resumen_principal = resultado_principal$resumen,
+                        data_vp_sample = head(data_vp, 20),
+                        gads_problematicos = if(exists("resultado_principal")) unique(resultado_principal$Gads_Problema$gad) else c(),
+                        estadisticas_optimizacion = if(exists("resultado_optimizacion")) resultado_optimizacion$estadisticas else NULL,
+                        distribucion_estratos = data_vp[, .(.N, problematicos = sum(tiene_problema, na.rm = TRUE)), by = est1][order(est1)]
+                    )
+                `);
+                
+                analysisResults = finalResults;
+                
+                // Mostrar resultados
+                renderResults(finalResults);
+                document.getElementById('results-tab').disabled = false;
+                document.getElementById('export-tab').disabled = false;
+                
+                // Cambiar a pestaña de resultados
+                const resultsTab = new bootstrap.Tab(document.getElementById('results-tab'));
+                resultsTab.show();
+                
+                currentStep.textContent = "¡Análisis completado exitosamente!";
+                progressBar.className = "progress-bar bg-success";
+                
+                setTimeout(() => {
+                    progressDiv.innerHTML = '<div class="alert alert-success">✅ Análisis completado con éxito</div>';
+                }, 2000);
+                
+                logRMessage("🎉 Proceso de análisis finalizado correctamente");
+                
             } catch (error) {
-                logRMessage(`Error en el análisis: ${error.message}`);
+                progressDiv.innerHTML = `<div class="alert alert-danger">❌ Error en el análisis: ${error.message}</div>`;
+                logRMessage(`❌ Error en el análisis: ${error.message}`);
             } finally {
-                document.getElementById('runAnalysis').disabled = false;
+                runBtn.disabled = false;
+                runText.textContent = "Ejecutar Análisis Completo";
+                runSpinner.style.display = "none";
             }
         }
         
         // Función para renderizar resultados
         function renderResults(results) {
-            const analysisResults = document.getElementById('analysisResults');
+            const content = document.getElementById('resultsContent');
             
-            // Mostrar resumen
-            analysisResults.innerHTML = `
-                <div class="alert alert-success">
-                    <h5>Análisis completado</h5>
-                    <p>Total GADs procesados: ${results.data_vp.length}</p>
-                    <p>GADs que necesitan ajuste: ${results.problematic_gads.length}</p>
+            // Crear métricas principales
+            const metricsHTML = `
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="metric-card metric-primary">
+                            <h3>${results.resumen_principal.total_gads}</h3>
+                            <p class="mb-0">GADs Analizados</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card metric-warning">
+                            <h3>${results.resumen_principal.gads_problematicos}</h3>
+                            <p class="mb-0">GADs Problemáticos</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card metric-info">
+                            <h3>${results.resumen_principal.porcentaje_problemas}%</h3>
+                            <p class="mb-0">Porcentaje de Problemas</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="metric-card metric-success">
+                            <h3>${results.estadisticas_optimizacion ? results.estadisticas_optimizacion.optimizados : 0}</h3>
+                            <p class="mb-0">GADs Optimizados</p>
+                        </div>
+                    </div>
                 </div>
             `;
             
-            // Gráfico de Valores Presentes
-            Highcharts.chart('chartVP', {
-                chart: { type: 'bar' },
-                title: { text: 'Valor Presente (10 años) por GAD' },
-                xAxis: { categories: results.data_vp.map(item => item.gad) },
-                yAxis: { title: { text: 'Valor Presente' } },
-                series: [{
-                    name: 'VP10_25',
-                    data: results.data_vp.map(item => item.vp10_25)
-                }]
-            });
-            
-            // Gráfico por estratos (ejemplo)
-            Highcharts.chart('chartEstratos', {
-                chart: { type: 'column' },
-                title: { text: 'Distribución por Estratos' },
-                xAxis: { categories: ['Estrato 1', 'Estrato 2', 'Estrato 3'] },
-                yAxis: { title: { text: 'Cantidad de GADs' } },
-                series: [{
-                    name: 'Total',
-                    data: [10, 15, 8]
-                }, {
-                    name: 'Con problemas',
-                    data: [2, 5, 3]
-                }]
-            });
-            
-            // Tabla de GADs problemáticos
-            const problematicHTML = `
-                <h6>GADs que requieren atención:</h6>
-                <ul class="list-group">
-                    ${results.problematic_gads.map(gad => `
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            ${gad}
-                            <span class="badge bg-danger rounded-pill">Revisión necesaria</span>
-                        </li>
-                    `).join('')}
-                </ul>
+            // Crear gráficos y tablas
+            const chartsHTML = `
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="result-card">
+                            <h5 class="mb-3">📊 Distribución por Estratos</h5>
+                            <div id="chartEstratos" class="chart-container"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="result-card">
+                            <h5 class="mb-3">📈 Progreso de Optimización</h5>
+                            <div id="chartOptimizacion" class="chart-container"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <h5 class="mb-3">🔍 Muestra de Datos Analizados</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>GAD</th>
+                                    <th>Estrato</th>
+                                    <th>VP 10 años</th>
+                                    <th>VP 15 años</th>
+                                    <th>VP 25 años</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTable">
+                                <!-- Se llenará dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             `;
-            document.getElementById('problematicGADs').innerHTML = problematicHTML;
+            
+            content.innerHTML = metricsHTML + chartsHTML;
+            
+            // Llenar tabla de datos
+            const tableBody = document.getElementById('dataTable');
+            if (results.data_vp_sample && Array.isArray(results.data_vp_sample)) {
+                tableBody.innerHTML = results.data_vp_sample.map(row => `
+                    <tr>
+                        <td class="text-truncate" style="max-width: 200px;" title="${row.gad}">${row.gad}</td>
+                        <td><span class="badge bg-primary">Estrato ${row.est1}</span></td>
+                        <td>${row.vp10_25 ? Number(row.vp10_25).toLocaleString() : 'N/A'}</td>
+                        <td>${row.vp15_25 ? Number(row.vp15_25).toLocaleString() : 'N/A'}</td>
+                        <td>${row.vp25_25 ? Number(row.vp25_25).toLocaleString() : 'N/A'}</td>
+                        <td>
+                            <span class="badge ${row.tiene_problema ? 'bg-warning' : 'bg-success'}">
+                                ${row.tiene_problema ? 'Requiere Atención' : 'Normal'}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            
+            // Crear gráfico de estratos
+            if (results.distribucion_estratos) {
+                const estratosData = results.distribucion_estratos.map(item => ({
+                    name: `Estrato ${item.est1}`,
+                    total: item.N,
+                    problematicos: item.problematicos,
+                    normales: item.N - item.problematicos
+                }));
+                
+                Highcharts.chart('chartEstratos', {
+                    chart: { type: 'column' },
+                    title: { text: 'GADs por Estrato y Estado' },
+                    xAxis: { 
+                        categories: estratosData.map(item => item.name),
+                        title: { text: 'Estratos' }
+                    },
+                    yAxis: { 
+                        title: { text: 'Cantidad de GADs' },
+                        allowDecimals: false
+                    },
+                    plotOptions: {
+                        column: { stacking: 'normal' }
+                    },
+                    series: [{
+                        name: 'Normal',
+                        data: estratosData.map(item => item.normales),
+                        color: '#28a745'
+                    }, {
+                        name: 'Problemático',
+                        data: estratosData.map(item => item.problematicos),
+                        color: '#dc3545'
+                    }],
+                    tooltip: {
+                        formatter: function() {
+                            return `<b>${this.x}</b><br/>
+                                    ${this.series.name}: ${this.y}<br/>
+                                    Total: ${this.point.stackTotal}`;
+                        }
+                    }
+                });
+            }
+            
+            // Crear gráfico de optimización
+            if (results.estadisticas_optimizacion) {
+                const optimData = results.estadisticas_optimizacion;
+                Highcharts.chart('chartOptimizacion', {
+                    chart: { type: 'pie' },
+                    title: { text: 'Resultados de Optimización' },
+                    series: [{
+                        name: 'GADs',
+                        data: [
+                            { name: 'Optimizados', y: optimData.optimizados, color: '#28a745' },
+                            { name: 'Aún Problemáticos', y: optimData.aun_problematicos, color: '#dc3545' }
+                        ]
+                    }],
+                    tooltip: {
+                        pointFormat: '{series.name}: <b>{point.y}</b> ({point.percentage:.1f}%)'
+                    }
+                });
+            }
         }
         
-        // Inicializar WebR cuando se cargue la página
+        // Eventos de exportación
+        function setupExportEvents() {
+            document.getElementById('exportExcelBtn').addEventListener('click', async () => {
+                try {
+                    await runRCode('archivo_excel <- exportar_resultados("excel")');
+                    alert('✅ Archivo Excel generado correctamente');
+                } catch (error) {
+                    alert('❌ Error al exportar Excel: ' + error.message);
+                }
+            });
+            
+            document.getElementById('exportCSVBtn').addEventListener('click', async () => {
+                try {
+                    await runRCode('archivo_csv <- exportar_resultados("csv")');
+                    alert('✅ Archivo CSV generado correctamente');
+                } catch (error) {
+                    alert('❌ Error al exportar CSV: ' + error.message);
+                }
+            });
+            
+            document.getElementById('exportRDataBtn').addEventListener('click', async () => {
+                try {
+                    await runRCode('archivo_rdata <- exportar_resultados("rdata")');
+                    alert('✅ Archivo RData generado correctamente');
+                } catch (error) {
+                    alert('❌ Error al exportar RData: ' + error.message);
+                }
+            });
+        }
+        
+        // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                logRMessage("Inicializando WebR...");
+                updateLoadingMessage("Inicializando WebR...");
+                updateProgress(10);
+                
                 webR = new WebR();
                 await webR.init();
-                logRMessage("WebR inicializado correctamente");
                 
-                // Ocultar pantalla de carga y mostrar contenido principal
-                document.getElementById('loadingScreen').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
+                updateLoadingMessage("Configurando entorno R...");
+                updateProgress(30);
                 
-                // Configurar evento para el botón de análisis
-                document.getElementById('runAnalysis').addEventListener('click', runFullAnalysis);
+                // Configurar eventos
+                document.getElementById('runAnalysisBtn').addEventListener('click', runFullAnalysis);
+                
+                // Configurar slider de precisión
+                const precisionRange = document.getElementById('precisionRange');
+                const precisionValue = document.getElementById('precisionValue');
+                precisionRange.addEventListener('input', () => {
+                    precisionValue.textContent = precisionRange.value;
+                });
+                
+                // Configurar eventos de exportación
+                setupExportEvents();
+                
+                updateLoadingMessage("Sistema listo. Cargue los archivos necesarios.");
+                updateProgress(100);
+                
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                    document.getElementById('mainContent').style.display = 'block';
+                }, 1500);
+                
+                logRMessage("🎉 Sistema inicializado correctamente");
                 
             } catch (error) {
-                logRMessage(`Error al inicializar WebR: ${error.message}`);
+                updateLoadingMessage(`❌ Error al inicializar: ${error.message}`);
+                rConsole.textContent += `\n${error.stack}`;
             }
         });
     </script>
